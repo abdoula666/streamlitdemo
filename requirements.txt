@@ -1,7 +1,6 @@
-streamlit
-tensorflow
+streamlit==1.15.2
 numpy==1.26.0
-scikit-learn
-Pillow
-tensorflow-intel==2.18.0
-opencv-python
+opencv-python-headless==4.6.0.66  # Lighter version for cloud environments
+tensorflow==2.11.0
+scikit-learn==1.0.2
+pillow==8.4.0

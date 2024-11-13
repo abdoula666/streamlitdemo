@@ -1,6 +1,7 @@
-tensorflow
-opencv-python
-scikit-learn
-numpy
-pillow
 streamlit
+tensorflow
+numpy==1.26.0
+scikit-learn
+Pillow
+tensorflow-intel==2.18.0
+opencv-python

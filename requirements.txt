@@ -1,0 +1,6 @@
+streamlit==1.6.0       # For the Streamlit app interface
+pillow==8.3.1          # For image handling with PIL
+numpy==1.21.0          # For numerical operations
+scikit-learn==0.24.1   # For Nearest Neighbors search
+tensorflow==2.6.0      # For loading the ResNet50 model
+opencv-python-headless # For image processing (cv2) in a headless environment

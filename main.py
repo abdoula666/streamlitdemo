@@ -73,16 +73,11 @@ model = tf.keras.Sequential([model, GlobalMaxPooling2D()])
 # Save uploaded file to server
 def save_uploaded_file(uploaded_file):
     try:
-        upload_dir = 'uploads'
-        if not os.path.exists(upload_dir):
-            os.makedirs(upload_dir)  # Ensure uploads directory exists
-        upload_path = os.path.join(upload_dir, uploaded_file.name)
-        with open(upload_path, 'wb') as f:
+        with open(os.path.join('uploads', uploaded_file.name), 'wb') as f:
             f.write(uploaded_file.getbuffer())
-        return upload_path  # Return full path for later use
-    except Exception as e:
-        st.error(f"Error saving file: {e}")
-        return None
+        return 1
+    except:
+        return 0
 
 # Extract features from the uploaded image
 def extract_feature(img_path, model):
@@ -109,15 +104,14 @@ def get_product_url(product_id):
 # Main Streamlit app code
 uploaded_file = st.file_uploader("Choisir l'image")  # Update label to French
 if uploaded_file is not None:
-    uploaded_image_path = save_uploaded_file(uploaded_file)  # Get the full path after saving
-    if uploaded_image_path:
+    if save_uploaded_file(uploaded_file):
         # Display the uploaded image
-        display_image = Image.open(uploaded_image_path)
+        display_image = Image.open(uploaded_file)
         resized_img = display_image.resize((200, 200))
         st.image(resized_img)
         
         # Extract features from the uploaded image
-        features = extract_feature(uploaded_image_path, model)
+        features = extract_feature(os.path.join("uploads", uploaded_file.name), model)
         
         # Get recommendations based on feature similarity
         indices = recommend(features, feature_list)
@@ -130,27 +124,21 @@ if uploaded_file is not None:
 
         for i in range(num_recommendations):
             with columns[i]:
-                recommended_image_path = os.path.join('uploads', filenames[indices[0][i]])
-                
-                # Ensure path exists before trying to open the image
-                if os.path.exists(recommended_image_path):
-                    recommended_image = Image.open(recommended_image_path)
-                    recommended_image_resized = recommended_image.resize((200, 200))  # Resize for consistent size
-                    st.image(recommended_image_resized)
-                    
-                    # Retrieve the product ID using the indices from product_ids
-                    product_id = product_ids[indices[0][i]]
+                # Display the recommended image
+                recommended_image = Image.open(filenames[indices[0][i]])
+                st.image(recommended_image)
 
-                    # Generate product URL
-                    product_url = get_product_url(product_id)
+                # Retrieve the product ID using the indices from product_ids
+                product_id = product_ids[indices[0][i]]
 
-                    # Display styled product link
-                    st.markdown(
-                        f'<a href="{product_url}" style="color: #ae2740; text-decoration: none;">Voir les détails</a>',
-                        unsafe_allow_html=True
-                    )
-                else:
-                    st.error(f"Recommended image not found: {recommended_image_path}")
+                # Generate product URL
+                product_url = get_product_url(product_id)
+
+                # Display styled product link
+                st.markdown(
+                    f'<a href="{product_url}" style="color: #ae2740; text-decoration: none;">Voir les détails</a>',
+                    unsafe_allow_html=True
+                )
 
     else:
         st.header("Some error occurred in file upload")

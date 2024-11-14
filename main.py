@@ -13,6 +13,10 @@ import cv2
 # Suppress TensorFlow GPU warnings
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Disable GPU
 
+# Suppress TensorFlow logging
+tf.get_logger().setLevel('ERROR')  # Suppress TensorFlow log messages
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Suppress INFO, WARN, and ERROR messages
+
 # Inject CSS to style the main block container, file uploader button, and other elements
 custom_style = """
     <style>

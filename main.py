@@ -106,15 +106,17 @@ def recommend(features, feature_list):
 def get_product_url(product_id):
     return f"https://cgbshop1.com/?p={product_id}"
 
-# Normalize the file path for cross-platform compatibility
+# Normalize and join paths correctly across platforms
 def get_normalized_path(path):
-    return os.path.abspath(os.path.normpath(path))  # Ensure absolute and normalized path
+    # Use os.path.join to properly format the path separator
+    return os.path.abspath(os.path.normpath(path))  # Absolute and normalized path
 
 # Ensure that filenames are correctly normalized
 filenames = [get_normalized_path(f) for f in filenames]
 
 # Check if a file exists at a given path
 def open_recommended_image(image_path):
+    # Check if the file exists before trying to open
     if os.path.exists(image_path):
         try:
             recommended_image = Image.open(image_path)

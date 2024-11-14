@@ -10,9 +10,6 @@ from sklearn.neighbors import NearestNeighbors
 from numpy.linalg import norm
 import cv2
 
-# Suppress TensorFlow GPU warnings
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Disable GPU
-
 # Inject CSS to style the main block container, file uploader button, and other elements
 custom_style = """
     <style>
@@ -76,10 +73,9 @@ model = tf.keras.Sequential([model, GlobalMaxPooling2D()])
 # Save uploaded file to server
 def save_uploaded_file(uploaded_file):
     try:
-        upload_path = os.path.join('uploads', uploaded_file.name)
-        with open(upload_path, 'wb') as f:
+        with open(os.path.join('uploads', uploaded_file.name), 'wb') as f:
             f.write(uploaded_file.getbuffer())
-        return upload_path
+        return os.path.join('uploads', uploaded_file.name)  # Return file path for further processing
     except Exception as e:
         st.error(f"Error saving file: {e}")
         return None
@@ -106,45 +102,25 @@ def recommend(features, feature_list):
 def get_product_url(product_id):
     return f"https://cgbshop1.com/?p={product_id}"
 
-# Normalize and join paths correctly across platforms
-def get_normalized_path(path):
-    # Use os.path.join to properly format the path separator
-    return os.path.abspath(os.path.normpath(path))  # Absolute and normalized path
-
-# Ensure that filenames are correctly normalized
-filenames = [get_normalized_path(f) for f in filenames]
-
-# Check if a file exists at a given path
-def open_recommended_image(image_path):
-    # Check if the file exists before trying to open
-    if os.path.exists(image_path):
-        try:
-            recommended_image = Image.open(image_path)
-            return recommended_image
-        except FileNotFoundError:
-            st.error(f"File not found: {image_path}")
-    else:
-        st.error(f"File does not exist: {image_path}")
-
 # Main Streamlit app code
 uploaded_file = st.file_uploader("Choisir l'image")  # Update label to French
 if uploaded_file is not None:
-    upload_path = save_uploaded_file(uploaded_file)
+    # Save the uploaded file and get the file path
+    file_path = save_uploaded_file(uploaded_file)
     
-    if upload_path:
+    if file_path:
         # Display the uploaded image
-        display_image = Image.open(upload_path)
+        display_image = Image.open(file_path)
         resized_img = display_image.resize((200, 200))
         st.image(resized_img)
         
         # Extract features from the uploaded image
-        normalized_path = get_normalized_path(upload_path)
-        features = extract_feature(normalized_path, model)
+        features = extract_feature(file_path, model)
         
         # Get recommendations based on feature similarity
         indices = recommend(features, feature_list)
 
-        # Get the number of recommended images
+        # Get the number of recommended images (max 15)
         num_recommendations = min(15, len(indices[0]))
 
         # Create columns dynamically based on the number of recommendations
@@ -152,12 +128,9 @@ if uploaded_file is not None:
 
         for i in range(num_recommendations):
             with columns[i]:
-                recommended_image_path = get_normalized_path(filenames[indices[0][i]])
-                print(f"Opening recommended image at path: {recommended_image_path}")  # Debug print
-                recommended_image = open_recommended_image(recommended_image_path)
-
-                if recommended_image:
-                    st.image(recommended_image)  # Display recommended image
+                # Display the recommended image
+                recommended_image = Image.open(filenames[indices[0][i]])
+                st.image(recommended_image)
 
                 # Retrieve the product ID using the indices from product_ids
                 product_id = product_ids[indices[0][i]]

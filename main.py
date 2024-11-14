@@ -8,6 +8,7 @@ from tensorflow.keras.layers import GlobalMaxPooling2D
 from tensorflow.keras.applications.resnet50 import ResNet50, preprocess_input
 from sklearn.neighbors import NearestNeighbors
 from numpy.linalg import norm
+import pickle  # Add this import
 
 # Disable GPU (optional)
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"

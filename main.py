@@ -10,6 +10,9 @@ from sklearn.neighbors import NearestNeighbors
 from numpy.linalg import norm
 import cv2
 
+# Suppress TensorFlow GPU warnings
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Disable GPU for CPU execution
+
 # Inject CSS to style the main block container, file uploader button, and other elements
 custom_style = """
     <style>
@@ -70,29 +73,47 @@ model = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3
 model.trainable = False
 model = tf.keras.Sequential([model, GlobalMaxPooling2D()])
 
-# Ensure the uploads folder exists
-if not os.path.exists('uploads'):
-    os.makedirs('uploads')
+# Directory where dataset images are stored
+dataset_folder = '/home/ubuntu/streamlitdemo/Dataset/'
+
+# Normalize the path to avoid issues with slashes (ensure forward slashes)
+def get_normalized_path(filename):
+    # Ensure the file path uses the correct format (forward slashes in Linux)
+    return os.path.normpath(os.path.join(dataset_folder, filename))
+
+# Check if a file exists at a given path
+def open_recommended_image(image_path):
+    if os.path.exists(image_path):
+        try:
+            recommended_image = Image.open(image_path)
+            return recommended_image
+        except Exception as e:
+            st.error(f"Error opening file {image_path}: {e}")
+    else:
+        st.error(f"File does not exist: {image_path}")
 
 # Save uploaded file to server
 def save_uploaded_file(uploaded_file):
     try:
-        with open(os.path.join('uploads', uploaded_file.name), 'wb') as f:
+        # Save to the 'uploads' folder
+        upload_path = os.path.join('uploads', uploaded_file.name)  # or specify a full path
+        upload_path = os.path.normpath(upload_path)  # Ensure the path is correctly normalized
+        with open(upload_path, 'wb') as f:
             f.write(uploaded_file.getbuffer())
-        return 1
+        return upload_path
     except Exception as e:
         st.error(f"Error saving file: {e}")
-        return 0
+        return None
 
 # Extract features from the uploaded image
 def extract_feature(img_path, model):
     img = cv2.imread(img_path)
-    img = cv2.resize(img, (224, 224))  # Resize to the correct shape
+    img = cv2.resize(img, (224, 224))
     img = np.array(img)
     expand_img = np.expand_dims(img, axis=0)
     pre_img = preprocess_input(expand_img)
     result = model.predict(pre_img).flatten()
-    normalized = result / norm(result)  # Normalize the result
+    normalized = result / norm(result)
     return normalized
 
 # Get recommendations based on feature similarity
@@ -102,66 +123,57 @@ def recommend(features, feature_list):
     distances, indices = neighbors.kneighbors([features])
     return indices
 
-# Generate WooCommerce product URL by index (corresponds to filename)
-def get_product_url(index):
-    # Use the index directly to access the filename from 'filenames'
-    product_filename = filenames[index]  # Get the filename based on index
-    return f"https://cgbshop1.com/product/{product_filename}/"
+# Generate WooCommerce product URL by product ID
+def get_product_url(product_id):
+    return f"https://cgbshop1.com/?p={product_id}"
 
 # Main Streamlit app code
 uploaded_file = st.file_uploader("Choisir l'image")  # Update label to French
 if uploaded_file is not None:
-    # Validate file format
-    valid_image_formats = ['.jpg', '.jpeg', '.png', '.gif']
-    file_extension = os.path.splitext(uploaded_file.name)[1].lower()
-    if file_extension not in valid_image_formats:
-        st.error("Invalid file format. Please upload a JPG, PNG, or GIF image.")
+    upload_path = save_uploaded_file(uploaded_file)
+    
+    if upload_path:
+        # Display the uploaded image
+        display_image = Image.open(upload_path)
+        resized_img = display_image.resize((200, 200))
+        st.image(resized_img)
+        
+        # Extract features from the uploaded image
+        normalized_path = get_normalized_path(upload_path)
+        features = extract_feature(normalized_path, model)
+        
+        # Get recommendations based on feature similarity
+        indices = recommend(features, feature_list)
+
+        # Get the number of recommended images
+        num_recommendations = min(15, len(indices[0]))
+
+        # Create columns dynamically based on the number of recommendations
+        columns = st.columns(num_recommendations)
+
+        for i in range(num_recommendations):
+            with columns[i]:
+                # Get the normalized path for the recommended image
+                recommended_image_path = get_normalized_path(filenames[indices[0][i]])
+
+                # Try to open the recommended image
+                recommended_image = open_recommended_image(recommended_image_path)
+
+                # If the image was opened successfully, display it
+                if recommended_image:
+                    st.image(recommended_image)
+
+                # Retrieve the product ID using the indices from product_ids
+                product_id = product_ids[indices[0][i]]
+
+                # Generate product URL
+                product_url = get_product_url(product_id)
+
+                # Display styled product link
+                st.markdown(
+                    f'<a href="{product_url}" style="color: #ae2740; text-decoration: none;">Voir les détails</a>',
+                    unsafe_allow_html=True
+                )
+
     else:
-        if save_uploaded_file(uploaded_file):
-            # Display the uploaded image
-            display_image = Image.open(uploaded_file)
-            resized_img = display_image.resize((200, 200))
-            st.image(resized_img)
-
-            # Extract features from the uploaded image
-            with st.spinner('Extracting features and finding recommendations...'):
-                features = extract_feature(os.path.join("uploads", uploaded_file.name), model)
-
-            # Get recommendations based on feature similarity
-            indices = recommend(features, feature_list)
-
-            # Get the number of recommended images
-            num_recommendations = min(15, len(indices[0]))
-
-            # Display recommendations or a warning if no recommendations
-            if num_recommendations > 0:
-                # Create columns dynamically based on the number of recommendations
-                columns = st.columns(num_recommendations)
-
-                for i in range(num_recommendations):
-                    with columns[i]:
-                        # Use indices[0][i] to get the correct index for the filename
-                        recommended_image_path = os.path.join('Dataset', filenames[indices[0][i]])
-                        
-                        # Check if the image exists before attempting to open it
-                        if os.path.exists(recommended_image_path):
-                            recommended_image = Image.open(recommended_image_path)
-                            st.image(recommended_image)
-                        else:
-                            st.error(f"Image not found: {recommended_image_path}")
-
-                        # Retrieve the product ID using the indices from product_ids
-                        recommended_index = indices[0][i]  # Get the index from the recommendation list
-
-                        # Generate product URL using the index
-                        product_url = get_product_url(recommended_index)
-
-                        # Display styled product link
-                        st.markdown(
-                            f'<a href="{product_url}" style="color: #ae2740; text-decoration: none;">Voir les détails</a>',
-                            unsafe_allow_html=True
-                        )
-            else:
-                st.warning("No recommendations found.")
-        else:
-            st.header("Some error occurred in file upload")
+        st.header("Some error occurred in file upload")

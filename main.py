@@ -10,6 +10,9 @@ from sklearn.neighbors import NearestNeighbors
 from numpy.linalg import norm
 import cv2
 
+# Suppress TensorFlow GPU warnings
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Disable GPU
+
 # Inject CSS to style the main block container, file uploader button, and other elements
 custom_style = """
     <style>

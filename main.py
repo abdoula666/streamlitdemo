@@ -117,17 +117,16 @@ def get_product_url(product_id):
     return f"https://cgbshop1.com/?p={product_id}"
 
 # Normalize the path to the dataset folder
-def get_normalized_path(path):
+def get_normalized_path(filename):
     # Ensure filenames are correctly resolved to absolute paths under the Dataset directory
-    return os.path.join(dataset_dir, path)  # Absolute path to images in Dataset
+    return os.path.join(dataset_dir, filename)  # Absolute path to images in Dataset
 
 # Ensure that filenames are correctly normalized
 filenames = [get_normalized_path(f) for f in filenames]
 
 # Check if a file exists at a given path
 def open_recommended_image(image_path):
-    print(f"Checking image at path: {image_path}")  # Debugging log to check the path
-    # Check if the file exists before trying to open
+    print(f"Opening image at path: {image_path}")  # Debugging log to check the path
     if os.path.exists(image_path):
         try:
             recommended_image = Image.open(image_path)

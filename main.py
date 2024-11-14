@@ -102,11 +102,10 @@ def recommend(features, feature_list):
     distances, indices = neighbors.kneighbors([features])
     return indices
 
-# Generate WooCommerce product URL by product ID
-def get_product_url(product_id):
-    # Correctly access the filename based on the index (product_id is now an index)
-    product_index = int(product_id)  # Ensure product_id is an integer
-    product_filename = filenames[product_index]  # Get the filename based on index
+# Generate WooCommerce product URL by index (corresponds to filename)
+def get_product_url(index):
+    # Use the index directly to access the filename from 'filenames'
+    product_filename = filenames[index]  # Get the filename based on index
     return f"https://cgbshop1.com/product/{product_filename}/"
 
 # Main Streamlit app code
@@ -141,7 +140,7 @@ if uploaded_file is not None:
 
                 for i in range(num_recommendations):
                     with columns[i]:
-                        # Make sure the path is correctly formatted for the current OS
+                        # Use indices[0][i] to get the correct index for the filename
                         recommended_image_path = os.path.join('Dataset', filenames[indices[0][i]])
                         
                         # Check if the image exists before attempting to open it
@@ -152,10 +151,10 @@ if uploaded_file is not None:
                             st.error(f"Image not found: {recommended_image_path}")
 
                         # Retrieve the product ID using the indices from product_ids
-                        product_id = product_ids[indices[0][i]]
+                        recommended_index = indices[0][i]  # Get the index from the recommendation list
 
-                        # Generate product URL
-                        product_url = get_product_url(product_id)
+                        # Generate product URL using the index
+                        product_url = get_product_url(recommended_index)
 
                         # Display styled product link
                         st.markdown(

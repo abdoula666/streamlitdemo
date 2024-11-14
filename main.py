@@ -70,10 +70,6 @@ model = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3
 model.trainable = False
 model = tf.keras.Sequential([model, GlobalMaxPooling2D()])
 
-# Normalize the file path for cross-platform compatibility
-def get_normalized_path(path):
-    return os.path.normpath(path)
-
 # Save uploaded file to server
 def save_uploaded_file(uploaded_file):
     try:
@@ -82,7 +78,7 @@ def save_uploaded_file(uploaded_file):
             f.write(uploaded_file.getbuffer())
         return upload_path
     except Exception as e:
-        print(f"Error saving file: {e}")
+        st.error(f"Error saving file: {e}")
         return None
 
 # Extract features from the uploaded image
@@ -106,6 +102,13 @@ def recommend(features, feature_list):
 # Generate WooCommerce product URL by product ID
 def get_product_url(product_id):
     return f"https://cgbshop1.com/?p={product_id}"
+
+# Normalize the file path for cross-platform compatibility
+def get_normalized_path(path):
+    return os.path.normpath(path)  # Normalize the path to use forward slashes
+
+# Ensure that filenames are correctly normalized
+filenames = [get_normalized_path(f) for f in filenames]
 
 # Main Streamlit app code
 uploaded_file = st.file_uploader("Choisir l'image")  # Update label to French

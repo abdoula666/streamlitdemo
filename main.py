@@ -138,9 +138,15 @@ if uploaded_file is not None:
 
                 for i in range(num_recommendations):
                     with columns[i]:
-                        # Display the recommended image
-                        recommended_image = Image.open(filenames[indices[0][i]])
-                        st.image(recommended_image)
+                        # Make sure the path is correctly formatted for the current OS
+                        recommended_image_path = os.path.join('Dataset', filenames[indices[0][i]])
+                        
+                        # Check if the image exists before attempting to open it
+                        if os.path.exists(recommended_image_path):
+                            recommended_image = Image.open(recommended_image_path)
+                            st.image(recommended_image)
+                        else:
+                            st.error(f"Image not found: {recommended_image_path}")
 
                         # Retrieve the product ID using the indices from product_ids
                         product_id = product_ids[indices[0][i]]

@@ -70,14 +70,20 @@ model = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3
 model.trainable = False
 model = tf.keras.Sequential([model, GlobalMaxPooling2D()])
 
+# Normalize the file path for cross-platform compatibility
+def get_normalized_path(path):
+    return os.path.normpath(path)
+
 # Save uploaded file to server
 def save_uploaded_file(uploaded_file):
     try:
-        with open(os.path.join('uploads', uploaded_file.name), 'wb') as f:
+        upload_path = os.path.join('uploads', uploaded_file.name)
+        with open(upload_path, 'wb') as f:
             f.write(uploaded_file.getbuffer())
-        return 1
-    except:
-        return 0
+        return upload_path
+    except Exception as e:
+        print(f"Error saving file: {e}")
+        return None
 
 # Extract features from the uploaded image
 def extract_feature(img_path, model):
@@ -104,14 +110,17 @@ def get_product_url(product_id):
 # Main Streamlit app code
 uploaded_file = st.file_uploader("Choisir l'image")  # Update label to French
 if uploaded_file is not None:
-    if save_uploaded_file(uploaded_file):
+    upload_path = save_uploaded_file(uploaded_file)
+    
+    if upload_path:
         # Display the uploaded image
-        display_image = Image.open(uploaded_file)
+        display_image = Image.open(upload_path)
         resized_img = display_image.resize((200, 200))
         st.image(resized_img)
         
         # Extract features from the uploaded image
-        features = extract_feature(os.path.join("uploads", uploaded_file.name), model)
+        normalized_path = get_normalized_path(upload_path)
+        features = extract_feature(normalized_path, model)
         
         # Get recommendations based on feature similarity
         indices = recommend(features, feature_list)
@@ -124,9 +133,16 @@ if uploaded_file is not None:
 
         for i in range(num_recommendations):
             with columns[i]:
-                # Display the recommended image
-                recommended_image = Image.open(filenames[indices[0][i]])
-                st.image(recommended_image)
+                # Get the normalized path for the recommended image
+                recommended_image_path = get_normalized_path(filenames[indices[0][i]])
+                print(f"Opening recommended image at path: {recommended_image_path}")  # Debug print
+
+                try:
+                    # Try opening the image using the normalized path
+                    recommended_image = Image.open(recommended_image_path)
+                    st.image(recommended_image)
+                except FileNotFoundError:
+                    st.error(f"File not found: {recommended_image_path}")
 
                 # Retrieve the product ID using the indices from product_ids
                 product_id = product_ids[indices[0][i]]

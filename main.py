@@ -73,20 +73,10 @@ model = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3
 model.trainable = False
 model = tf.keras.Sequential([model, GlobalMaxPooling2D()])
 
-# Ensure the 'Dataset' directory exists on your EC2 instance
-dataset_dir = '/home/ubuntu/streamlitdemo/Dataset'
-if not os.path.exists(dataset_dir):
-    os.makedirs(dataset_dir)
-
-# Ensure the 'uploads' directory exists for saving uploaded images
-upload_dir = 'uploads'
-if not os.path.exists(upload_dir):
-    os.makedirs(upload_dir)
-
 # Save uploaded file to server
 def save_uploaded_file(uploaded_file):
     try:
-        upload_path = os.path.join(upload_dir, uploaded_file.name)
+        upload_path = os.path.join('uploads', uploaded_file.name)
         with open(upload_path, 'wb') as f:
             f.write(uploaded_file.getbuffer())
         return upload_path
@@ -116,17 +106,17 @@ def recommend(features, feature_list):
 def get_product_url(product_id):
     return f"https://cgbshop1.com/?p={product_id}"
 
-# Normalize the path to the dataset folder
-def get_normalized_path(filename):
-    # Ensure filenames are correctly resolved to absolute paths under the Dataset directory
-    return os.path.join(dataset_dir, filename)  # Absolute path to images in Dataset
+# Normalize and join paths correctly across platforms
+def get_normalized_path(path):
+    # Use os.path.join to properly format the path separator
+    return os.path.abspath(os.path.normpath(path))  # Absolute and normalized path
 
 # Ensure that filenames are correctly normalized
 filenames = [get_normalized_path(f) for f in filenames]
 
 # Check if a file exists at a given path
 def open_recommended_image(image_path):
-    print(f"Opening image at path: {image_path}")  # Debugging log to check the path
+    # Check if the file exists before trying to open
     if os.path.exists(image_path):
         try:
             recommended_image = Image.open(image_path)
@@ -148,7 +138,7 @@ if uploaded_file is not None:
         st.image(resized_img)
         
         # Extract features from the uploaded image
-        normalized_path = os.path.abspath(upload_path)  # Make sure the uploaded path is absolute
+        normalized_path = get_normalized_path(upload_path)
         features = extract_feature(normalized_path, model)
         
         # Get recommendations based on feature similarity
@@ -163,6 +153,7 @@ if uploaded_file is not None:
         for i in range(num_recommendations):
             with columns[i]:
                 recommended_image_path = get_normalized_path(filenames[indices[0][i]])
+                print(f"Opening recommended image at path: {recommended_image_path}")  # Debug print
                 open_recommended_image(recommended_image_path)
 
                 # Retrieve the product ID using the indices from product_ids

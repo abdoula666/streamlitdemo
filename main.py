@@ -11,7 +11,7 @@ from numpy.linalg import norm
 import cv2
 
 # Suppress TensorFlow GPU warnings
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Disable GPU for CPU execution
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Disable GPU
 
 # Inject CSS to style the main block container, file uploader button, and other elements
 custom_style = """
@@ -73,31 +73,10 @@ model = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3
 model.trainable = False
 model = tf.keras.Sequential([model, GlobalMaxPooling2D()])
 
-# Directory where dataset images are stored
-dataset_folder = '/home/ubuntu/streamlitdemo/Dataset/'
-
-# Normalize the path to avoid issues with slashes (ensure forward slashes)
-def get_normalized_path(filename):
-    # Ensure the file path uses the correct format (forward slashes in Linux)
-    return os.path.normpath(os.path.join(dataset_folder, filename))
-
-# Check if a file exists at a given path
-def open_recommended_image(image_path):
-    if os.path.exists(image_path):
-        try:
-            recommended_image = Image.open(image_path)
-            return recommended_image
-        except Exception as e:
-            st.error(f"Error opening file {image_path}: {e}")
-    else:
-        st.error(f"File does not exist: {image_path}")
-
 # Save uploaded file to server
 def save_uploaded_file(uploaded_file):
     try:
-        # Save to the 'uploads' folder
-        upload_path = os.path.join('uploads', uploaded_file.name)  # or specify a full path
-        upload_path = os.path.normpath(upload_path)  # Ensure the path is correctly normalized
+        upload_path = os.path.join('uploads', uploaded_file.name)
         with open(upload_path, 'wb') as f:
             f.write(uploaded_file.getbuffer())
         return upload_path
@@ -107,12 +86,29 @@ def save_uploaded_file(uploaded_file):
 
 # Extract features from the uploaded image
 def extract_feature(img_path, model):
+    # Log the path for debugging
+    st.write(f"Loading image from path: {img_path}")
+    
+    # Read the image using OpenCV
     img = cv2.imread(img_path)
+    
+    if img is None:
+        # If the image is None, log an error and return
+        st.error(f"Failed to load image at path: {img_path}")
+        return None
+
+    # Resize the image to the target size (224x224 for ResNet50)
     img = cv2.resize(img, (224, 224))
+    
+    # Convert to numpy array and preprocess for model
     img = np.array(img)
     expand_img = np.expand_dims(img, axis=0)
     pre_img = preprocess_input(expand_img)
+    
+    # Get the feature vector from the model
     result = model.predict(pre_img).flatten()
+    
+    # Normalize the result to ensure the features are comparable
     normalized = result / norm(result)
     return normalized
 
@@ -126,6 +122,13 @@ def recommend(features, feature_list):
 # Generate WooCommerce product URL by product ID
 def get_product_url(product_id):
     return f"https://cgbshop1.com/?p={product_id}"
+
+# Normalize the file path for cross-platform compatibility
+def get_normalized_path(path):
+    return os.path.normpath(path)  # Normalize the path to use forward slashes
+
+# Ensure that filenames are correctly normalized
+filenames = [get_normalized_path(f) for f in filenames]
 
 # Main Streamlit app code
 uploaded_file = st.file_uploader("Choisir l'image")  # Update label to French
@@ -142,38 +145,40 @@ if uploaded_file is not None:
         normalized_path = get_normalized_path(upload_path)
         features = extract_feature(normalized_path, model)
         
-        # Get recommendations based on feature similarity
-        indices = recommend(features, feature_list)
+        if features is not None:
+            # Get recommendations based on feature similarity
+            indices = recommend(features, feature_list)
 
-        # Get the number of recommended images
-        num_recommendations = min(15, len(indices[0]))
+            # Get the number of recommended images
+            num_recommendations = min(15, len(indices[0]))
 
-        # Create columns dynamically based on the number of recommendations
-        columns = st.columns(num_recommendations)
+            # Create columns dynamically based on the number of recommendations
+            columns = st.columns(num_recommendations)
 
-        for i in range(num_recommendations):
-            with columns[i]:
-                # Get the normalized path for the recommended image
-                recommended_image_path = get_normalized_path(filenames[indices[0][i]])
+            for i in range(num_recommendations):
+                with columns[i]:
+                    # Get the normalized path for the recommended image
+                    recommended_image_path = get_normalized_path(filenames[indices[0][i]])
+                    print(f"Opening recommended image at path: {recommended_image_path}")  # Debug print
 
-                # Try to open the recommended image
-                recommended_image = open_recommended_image(recommended_image_path)
+                    try:
+                        # Try opening the image using the normalized path
+                        recommended_image = Image.open(recommended_image_path)
+                        st.image(recommended_image)
+                    except FileNotFoundError:
+                        st.error(f"File not found: {recommended_image_path}")
 
-                # If the image was opened successfully, display it
-                if recommended_image:
-                    st.image(recommended_image)
+                    # Retrieve the product ID using the indices from product_ids
+                    product_id = product_ids[indices[0][i]]
 
-                # Retrieve the product ID using the indices from product_ids
-                product_id = product_ids[indices[0][i]]
+                    # Generate product URL
+                    product_url = get_product_url(product_id)
 
-                # Generate product URL
-                product_url = get_product_url(product_id)
-
-                # Display styled product link
-                st.markdown(
-                    f'<a href="{product_url}" style="color: #ae2740; text-decoration: none;">Voir les détails</a>',
-                    unsafe_allow_html=True
-                )
+                    # Display styled product link
+                    st.markdown(
+                        f'<a href="{product_url}" style="color: #ae2740; text-decoration: none;">Voir les détails</a>',
+                        unsafe_allow_html=True
+                    )
 
     else:
         st.header("Some error occurred in file upload")

@@ -154,7 +154,10 @@ if uploaded_file is not None:
             with columns[i]:
                 recommended_image_path = get_normalized_path(filenames[indices[0][i]])
                 print(f"Opening recommended image at path: {recommended_image_path}")  # Debug print
-                open_recommended_image(recommended_image_path)
+                recommended_image = open_recommended_image(recommended_image_path)
+
+                if recommended_image:
+                    st.image(recommended_image)  # Display recommended image
 
                 # Retrieve the product ID using the indices from product_ids
                 product_id = product_ids[indices[0][i]]

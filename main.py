@@ -104,7 +104,10 @@ def recommend(features, feature_list):
 
 # Generate WooCommerce product URL by product ID
 def get_product_url(product_id):
-    return f"https://cgbshop1.com/product/{filenames[product_id]}/"
+    # Correctly access the filename based on the index (product_id is now an index)
+    product_index = int(product_id)  # Ensure product_id is an integer
+    product_filename = filenames[product_index]  # Get the filename based on index
+    return f"https://cgbshop1.com/product/{product_filename}/"
 
 # Main Streamlit app code
 uploaded_file = st.file_uploader("Choisir l'image")  # Update label to French

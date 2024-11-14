@@ -10,10 +10,8 @@ from sklearn.neighbors import NearestNeighbors
 from numpy.linalg import norm
 import cv2
 
-# Suppress TensorFlow GPU warnings
+# Suppress TensorFlow GPU warnings and logging
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Disable GPU
-
-# Suppress TensorFlow logging
 tf.get_logger().setLevel('ERROR')  # Suppress TensorFlow log messages
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Suppress INFO, WARN, and ERROR messages
 

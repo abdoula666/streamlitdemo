@@ -73,10 +73,15 @@ model = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3
 model.trainable = False
 model = tf.keras.Sequential([model, GlobalMaxPooling2D()])
 
+# Ensure the 'uploads' directory exists
+upload_dir = 'uploads'
+if not os.path.exists(upload_dir):
+    os.makedirs(upload_dir)
+
 # Save uploaded file to server
 def save_uploaded_file(uploaded_file):
     try:
-        upload_path = os.path.join('uploads', uploaded_file.name)
+        upload_path = os.path.join(upload_dir, uploaded_file.name)
         with open(upload_path, 'wb') as f:
             f.write(uploaded_file.getbuffer())
         return upload_path

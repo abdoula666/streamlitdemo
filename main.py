@@ -73,9 +73,16 @@ model = tf.keras.Sequential([model, GlobalMaxPooling2D()])
 # Save uploaded file to server
 def save_uploaded_file(uploaded_file):
     try:
-        with open(os.path.join('uploads', uploaded_file.name), 'wb') as f:
+        upload_dir = 'uploads'
+        # Ensure the upload directory exists
+        if not os.path.exists(upload_dir):
+            os.makedirs(upload_dir)
+
+        # Use forward slashes for the path
+        file_path = os.path.join(upload_dir, uploaded_file.name)
+        with open(file_path, 'wb') as f:
             f.write(uploaded_file.getbuffer())
-        return os.path.join('uploads', uploaded_file.name)  # Return file path for further processing
+        return file_path  # Return file path for further processing
     except Exception as e:
         st.error(f"Error saving file: {e}")
         return None

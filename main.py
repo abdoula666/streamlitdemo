@@ -1,5 +1,5 @@
-import streamlit as st
 import os
+import streamlit as st
 from PIL import Image
 import numpy as np
 import pickle
@@ -78,8 +78,10 @@ def save_uploaded_file(uploaded_file):
         if not os.path.exists(upload_dir):
             os.makedirs(upload_dir)
 
-        # Use forward slashes for the path
+        # Use forward slashes to ensure compatibility with Linux
         file_path = os.path.join(upload_dir, uploaded_file.name)
+        file_path = file_path.replace("\\", "/")  # Replace backslashes with forward slashes
+
         with open(file_path, 'wb') as f:
             f.write(uploaded_file.getbuffer())
         return file_path  # Return file path for further processing

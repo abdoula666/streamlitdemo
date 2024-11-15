@@ -1,167 +1,83 @@
 import streamlit as st
 import os
-from PIL import Image
 import numpy as np
 import pickle
 import tensorflow as tf
+import cv2
+from PIL import Image
 from tensorflow.keras.layers import GlobalMaxPooling2D
 from tensorflow.keras.applications.resnet50 import ResNet50, preprocess_input
 from sklearn.neighbors import NearestNeighbors
 from numpy.linalg import norm
-import cv2
 
-# Inject CSS to style the main block container, file uploader button, and other elements
-custom_style = """
+# Inject CSS for styling
+st.markdown("""
     <style>
-        /* Set the main block container background color to white and text color to black */
-        .stMainBlockContainer.block-container.st-emotion-cache-13ln4jf.ea3mdgi5 {
-            background-color: white !important;
-            color: black !important;
-        }
-
-        /* Set the main container (stMain) background color to white */
-        .stMain.st-emotion-cache-bm2z3a.ea3mdgi8 {
-            background-color: white !important;
-        }
-
-        /* Style the file uploader button with color #ae2740 */
-        .st-emotion-cache-1erivf3.e1b2p2ww15 {
-            background-color: #ae2740 !important;
-            color: white !important;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        /* Style the file uploader button with the same color #ae2740 */
-        .st-emotion-cache-15hul6a.ef3psqc16 {
-            background-color: #ae2740 !important;
-            color: white !important;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        /* Hide elements with the specified classes */
-        .st-emotion-cache-7oyrr6.e1bju1570,
-        .st-emotion-cache-1fttcpj.e1b2p2ww11,
-        .eyeqlp53.st-emotion-cache-6rlrad.ex0cdmw0 { 
-            display: none !important;
-        }
-
-        /* Hide the footer and toolbar */
-        footer {visibility: hidden;}
-        #MainMenu {visibility: hidden;}
+        .stMainBlockContainer, .stMain {background-color: white !important;}
+        .st-emotion-cache-1erivf3, .st-emotion-cache-15hul6a {
+            background-color: #ae2740 !important; color: white !important; 
+            padding: 10px 20px; border: none; border-radius: 4px; 
+            cursor: pointer; font-weight: bold;}
+        .st-emotion-cache-7oyrr6, .st-emotion-cache-1fttcpj,
+        .eyeqlp53.st-emotion-cache-6rlrad {display: none !important;}
+        footer, #MainMenu {visibility: hidden;}
     </style>
-"""
-st.markdown(custom_style, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-# Load precomputed feature vectors, filenames, and product IDs
-feature_list = np.array(pickle.load(open('featurevector.pkl', 'rb')))
+# Load data
+features = np.array(pickle.load(open('featurevector.pkl', 'rb')))
 filenames = pickle.load(open('filenames.pkl', 'rb'))
-product_ids = pickle.load(open('product_ids.pkl', 'rb'))  # Load product IDs
+product_ids = pickle.load(open('product_ids.pkl', 'rb'))
 
-# Initialize ResNet50 model for feature extraction
-model = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+# Initialize ResNet50 model
+model = tf.keras.Sequential([
+    ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3)),
+    GlobalMaxPooling2D()
+])
 model.trainable = False
-model = tf.keras.Sequential([model, GlobalMaxPooling2D()])
 
-# Ensure the upload directory exists and has the correct permissions
+# Ensure upload directory exists
 upload_dir = '/home/ubuntu/streamlitdemo/uploads'
-if not os.path.exists(upload_dir):
-    os.makedirs(upload_dir)  # Create directory if it doesn't exist
+os.makedirs(upload_dir, exist_ok=True)
 
-# Save uploaded file to the server
-def save_uploaded_file(uploaded_file):
-    try:
-        # Generate the absolute path for saving the file
-        file_path = os.path.join(upload_dir, uploaded_file.name)
-        file_path = file_path.replace("\\", "/")  # Ensure forward slashes for Linux compatibility
-        
-        with open(file_path, 'wb') as f:
-            f.write(uploaded_file.getbuffer())
-        
-        return file_path  # Return the absolute file path
-    except Exception as e:
-        st.error(f"Error saving file: {e}")
-        return None
+# Save uploaded file
+def save_file(uploaded_file):
+    file_path = os.path.join(upload_dir, uploaded_file.name.replace("\\", "/"))
+    with open(file_path, 'wb') as f:
+        f.write(uploaded_file.getbuffer())
+    return file_path
 
-# Extract features from the uploaded image
-def extract_feature(img_path, model):
-    img = cv2.imread(img_path)  # Read image using absolute path
-    if img is None:
-        st.error(f"Failed to read image from {img_path}")
-        return None
-    
+# Extract features
+def extract_features(img_path):
+    img = cv2.imread(img_path)
+    if img is None: return None
     img = cv2.resize(img, (224, 224))
-    img = np.array(img)
-    expand_img = np.expand_dims(img, axis=0)
-    pre_img = preprocess_input(expand_img)
-    result = model.predict(pre_img).flatten()
-    normalized = result / norm(result)
-    return normalized
+    pre_img = preprocess_input(np.expand_dims(img, axis=0))
+    return model.predict(pre_img).flatten() / norm(result)
 
-# Get recommendations based on feature similarity
-def recommend(features, feature_list):
-    neighbors = NearestNeighbors(n_neighbors=15, algorithm='brute', metric='euclidean')
-    neighbors.fit(feature_list)
-    distances, indices = neighbors.kneighbors([features])
-    return indices
+# Recommend similar products
+def recommend(features):
+    neighbors = NearestNeighbors(n_neighbors=15, algorithm='brute')
+    neighbors.fit(features)
+    return neighbors.kneighbors([features])[1]
 
-# Generate WooCommerce product URL by product ID
-def get_product_url(product_id):
+# Generate product URL
+def product_url(product_id):
     return f"https://cgbshop1.com/?p={product_id}"
 
-# Main Streamlit app code
-uploaded_file = st.file_uploader("Choisir l'image")  # Update label to French
-if uploaded_file is not None:
-    # Save the uploaded file and get the file path
-    file_path = save_uploaded_file(uploaded_file)
-    
+# Main app logic
+uploaded_file = st.file_uploader("Choisir l'image")
+if uploaded_file:
+    file_path = save_file(uploaded_file)
     if file_path:
-        # Debugging: check if the file is actually saved and accessible
         st.write(f"File saved to: {file_path}")
-
-        # Display the uploaded image
-        display_image = Image.open(file_path)
-        resized_img = display_image.resize((200, 200))
-        st.image(resized_img)
-        
-        # Extract features from the uploaded image
-        features = extract_feature(file_path, model)
-        
+        st.image(Image.open(file_path).resize((200, 200)))
+        features = extract_features(file_path)
         if features is not None:
-            # Get recommendations based on feature similarity
-            indices = recommend(features, feature_list)
-
-            # Get the number of recommended images (max 15)
-            num_recommendations = min(15, len(indices[0]))
-
-            # Create columns dynamically based on the number of recommendations
-            columns = st.columns(num_recommendations)
-
-            for i in range(num_recommendations):
-                with columns[i]:
-                    # Display the recommended image
-                    recommended_image_path = filenames[indices[0][i]]
-                    recommended_image = Image.open(recommended_image_path)
-                    st.image(recommended_image)
-
-                    # Retrieve the product ID using the indices from product_ids
-                    product_id = product_ids[indices[0][i]]
-
-                    # Generate product URL
-                    product_url = get_product_url(product_id)
-
-                    # Display styled product link
-                    st.markdown(
-                        f'<a href="{product_url}" style="color: #ae2740; text-decoration: none;">Voir les détails</a>',
-                        unsafe_allow_html=True
-                    )
-
-    else:
-        st.header("Some error occurred in file upload")
+            indices = recommend(features)
+            for i in range(min(15, len(indices[0]))):
+                col = st.columns(15)[i]
+                with col:
+                    img_path = filenames[indices[0][i]]
+                    st.image(Image.open(img_path))
+                    st.markdown(f'<a href="{product_url(product_ids[indices[0][i]])}" style="color: #ae2740;">Voir les détails</a>', unsafe_allow_html=True)

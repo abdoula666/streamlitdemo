@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit as st 
 import os
 import numpy as np
 import pickle
@@ -53,7 +53,8 @@ def extract_features(img_path):
     if img is None: return None
     img = cv2.resize(img, (224, 224))
     pre_img = preprocess_input(np.expand_dims(img, axis=0))
-    return model.predict(pre_img).flatten() / norm(result)
+    result = model.predict(pre_img).flatten()  # Compute features using the model
+    return result / norm(result)  # Normalize the result and return
 
 # Recommend similar products
 def recommend(features):

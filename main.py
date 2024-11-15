@@ -1,5 +1,5 @@
-import os
 import streamlit as st
+import os
 from PIL import Image
 import numpy as np
 import pickle
@@ -70,28 +70,33 @@ model = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3
 model.trainable = False
 model = tf.keras.Sequential([model, GlobalMaxPooling2D()])
 
-# Save uploaded file to server
+# Ensure the upload directory exists and has the correct permissions
+upload_dir = '/home/ubuntu/streamlitdemo/uploads'
+if not os.path.exists(upload_dir):
+    os.makedirs(upload_dir)  # Create directory if it doesn't exist
+
+# Save uploaded file to the server
 def save_uploaded_file(uploaded_file):
     try:
-        upload_dir = 'uploads'
-        # Ensure the upload directory exists
-        if not os.path.exists(upload_dir):
-            os.makedirs(upload_dir)
-
-        # Use forward slashes to ensure compatibility with Linux
+        # Generate the absolute path for saving the file
         file_path = os.path.join(upload_dir, uploaded_file.name)
-        file_path = file_path.replace("\\", "/")  # Replace backslashes with forward slashes
-
+        file_path = file_path.replace("\\", "/")  # Ensure forward slashes for Linux compatibility
+        
         with open(file_path, 'wb') as f:
             f.write(uploaded_file.getbuffer())
-        return file_path  # Return file path for further processing
+        
+        return file_path  # Return the absolute file path
     except Exception as e:
         st.error(f"Error saving file: {e}")
         return None
 
 # Extract features from the uploaded image
 def extract_feature(img_path, model):
-    img = cv2.imread(img_path)
+    img = cv2.imread(img_path)  # Read image using absolute path
+    if img is None:
+        st.error(f"Failed to read image from {img_path}")
+        return None
+    
     img = cv2.resize(img, (224, 224))
     img = np.array(img)
     expand_img = np.expand_dims(img, axis=0)
@@ -118,6 +123,9 @@ if uploaded_file is not None:
     file_path = save_uploaded_file(uploaded_file)
     
     if file_path:
+        # Debugging: check if the file is actually saved and accessible
+        st.write(f"File saved to: {file_path}")
+
         # Display the uploaded image
         display_image = Image.open(file_path)
         resized_img = display_image.resize((200, 200))
@@ -126,32 +134,34 @@ if uploaded_file is not None:
         # Extract features from the uploaded image
         features = extract_feature(file_path, model)
         
-        # Get recommendations based on feature similarity
-        indices = recommend(features, feature_list)
+        if features is not None:
+            # Get recommendations based on feature similarity
+            indices = recommend(features, feature_list)
 
-        # Get the number of recommended images (max 15)
-        num_recommendations = min(15, len(indices[0]))
+            # Get the number of recommended images (max 15)
+            num_recommendations = min(15, len(indices[0]))
 
-        # Create columns dynamically based on the number of recommendations
-        columns = st.columns(num_recommendations)
+            # Create columns dynamically based on the number of recommendations
+            columns = st.columns(num_recommendations)
 
-        for i in range(num_recommendations):
-            with columns[i]:
-                # Display the recommended image
-                recommended_image = Image.open(filenames[indices[0][i]])
-                st.image(recommended_image)
+            for i in range(num_recommendations):
+                with columns[i]:
+                    # Display the recommended image
+                    recommended_image_path = filenames[indices[0][i]]
+                    recommended_image = Image.open(recommended_image_path)
+                    st.image(recommended_image)
 
-                # Retrieve the product ID using the indices from product_ids
-                product_id = product_ids[indices[0][i]]
+                    # Retrieve the product ID using the indices from product_ids
+                    product_id = product_ids[indices[0][i]]
 
-                # Generate product URL
-                product_url = get_product_url(product_id)
+                    # Generate product URL
+                    product_url = get_product_url(product_id)
 
-                # Display styled product link
-                st.markdown(
-                    f'<a href="{product_url}" style="color: #ae2740; text-decoration: none;">Voir les détails</a>',
-                    unsafe_allow_html=True
-                )
+                    # Display styled product link
+                    st.markdown(
+                        f'<a href="{product_url}" style="color: #ae2740; text-decoration: none;">Voir les détails</a>',
+                        unsafe_allow_html=True
+                    )
 
     else:
         st.header("Some error occurred in file upload")
